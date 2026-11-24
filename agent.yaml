@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: cpu-monitoring
+  namespace: whatap
+  labels:
+    app: cpu-monitoring
+spec:
+  selector:
+    matchLabels:
+      app: cpu-monitoring
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: cpu-monitoring
+    spec:
+      tolerations:
+        - operator: Exists
+      terminationGracePeriodSeconds: 10
+      containers:
+        - name: cpu-monitor
+          image: cpu-monitor:1.0.0
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: PROC_ROOT
+              value: /host/proc
+            - name: COLLECT_INTERVAL
+              value: "5s"
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          volumeMounts:
+            - name: host-proc
+              mountPath: /host/proc
+              readOnly: true
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 50m
+              memory: 32Mi
+          securityContext:
+            seccompProfile:
+                type: RuntimeDefault
+            runAsNonRoot: true
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+      volumes:
+        - name: host-proc
+          hostPath:
+            path: /proc
+            type: Directory
